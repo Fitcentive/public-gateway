@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
+    <target>System.out</target>
+    <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+      <fieldNames>
+        <level>severity</level>
+      </fieldNames>
+    </encoder>
+  </appender>
+
+  <appender name="ASYNC-JSON" class="ch.qos.logback.classic.AsyncAppender">
+    <appender-ref ref="JSON"/>
+  </appender>
+
+  <root level="INFO">
+    <appender-ref ref="ASYNC-JSON"/>
+  </root>
+</configuration>

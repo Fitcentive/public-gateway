@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: public-gateway-service
+  labels:
+    app: public-gateway-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: public-gateway-service
+  template:
+    metadata:
+      labels:
+        app: public-gateway-service
+    spec:
+      containers:
+        - name: public-gateway-service
+          image: public-gateway:1.0
+          imagePullPolicy: Never
+          resources:
+            requests:
+              memory: 300Mi
+              cpu: "0.5"
+            limits:
+              memory: 500Mi
+              cpu: "1.0"
+          ports:
+            - name: http-port
+              containerPort: 9000
+          readinessProbe:
+            httpGet:
+              path: /api/gateway/health
+              port: 9000
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          livenessProbe:
+            httpGet:
+              path: /api/gateway/health
+              port: 9000
+            initialDelaySeconds: 120
+            periodSeconds: 15
+          env:
+            - name: GCP_PROJECT_NAME
+              value: "fitcentive-1210"
+            - name: IMAGE_SERVICE_HOST
+              value: "http://image-service"
+            - name: IMAGE_SERVICE_PORT
+              value: "10260"
+            - name: IMAGE_SERVICE_TOKEN
+              value: "fbsxIBmBRNff6d97jwnFfWADhFWCs3fA"
+            - name: IMAGE_PROXY_HOST
+              value: "http://image-proxy"
+            - name: IMAGE_PROXY_PORT
+              value: "10270"
+            - name: IMAGE_PROXY_TOKEN
+              value: "fbsxIBmBRNff6d97jwnFfWADhFWCs3fA"
+            - name: INTERNAL_SERVICE_SECRET
+              value: "ymmtuBE62NJRIro6eCBxl5wcIZvmKg3nSTgP2YSyjOB5fq3S0ZNFXdY1DLUBo8ji"
+            - name: JWT_ISSUER
+              value: "http://api.vid.app"
+            - name: KEYCLOAK_SERVER_URL
+              value: "http://auth-keycloak-http/auth"
+            - name: RUNTIME_ENVIRONMENT
+              value: "local"
+

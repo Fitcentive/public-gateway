@@ -1,0 +1,12 @@
+
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# ~~~~
+
+
+GET      /api/gateway/health                                        io.fitcentive.public_gateway.controllers.HealthController.healthCheck
+
+POST     /api/gateway/image/upload/*uploadPath                      io.fitcentive.public_gateway.controllers.PublicController.uploadImage(uploadPath: String)
+GET      /api/gateway/image/*imagePath                              io.fitcentive.public_gateway.controllers.PublicController.fetchImage(imagePath: String, transform: Option[String])
+
+      
