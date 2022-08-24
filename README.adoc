@@ -1,0 +1,71 @@
+= Public Gateway
+
+== Description
+A proxy for public facing entity access. Includes image uploads and image fetching for now
+
+== Pre-requisites
+1. https://www.keycloak.org/guides#getting-started[keycloak server] to validate token
+2. Java 8+
+3. Sbt
+
+== Running service locally
+1. This service has a dependency on the `image-service`. Either run that locally as well, or use `kubectl` port forwarding to make it available
+    - `kubectl port-forward svc/image-service 10260:10260`
+2. This service has a dependency on the `image-service`. Either run that locally as well, or use `kubectl` port forwarding to make it available
+    - `kubectl port-forward svc/image-proxy 10270:10270`
+3. This service also needs access to a keycloak server running on port 8080
+    - `kubectl port-forward svc/auth-keycloak-http 8080:80`
+4. `sbt clean run`
+5. `curl http://localhost:9000/api/gateway/health` to bootstrap the server
+
+== Deploy to minikube cluster
+
+'''
+
+=== Pre-requisites
+Note - these pre-requisites need only be done **once ever**. If you are deploying another service and you have already completed these steps, no need to repeat them (but follow steps that weren't executed before)
+
+==== 1. Start a single node `minikube` cluter with enough resources
+1. `minikube -p=hyperkit --memory 8192 --cpus 8 start`
+2.  **Note** - use the `hyperkit` driver otherwise TLS will not work
+
+==== 2. Enable TLS on minikube cluster
+1. `mkcert "*.vid.app"`
+2. `kubectl -n kube-system create secret tls mkcert --key key.pem --cert cert.pem`
+3. `minikube addons configure ingress`
+4. Verify that certificate was enabled
+- `kubectl -n ingress-nginx get deployment ingress-nginx-controller -o yaml | grep "kube-system"`
+5. For a comprehensive set of instructions, https://minikube.sigs.k8s.io/docs/tutorials/custom_cert_ingress/[refer to the minikube docs]
+
+==== 3. Add DNS entry to local hosts file
+1. `sudo vi /etc/hosts`
+2. Add the following entry to the file below `127.0.0.1     localhost`
+- `192.168.64.3 api.vid.app`
+
+'''
+
+=== 1. Delete existing deployment and build fresh image
+1. `kubectl delete deployment/public-gateway-service`
+2. `docker image ls | grep public-gateway`
+3. `docker image rm public-gateway`
+4. `docker image rm <image_hash>`
+5. `sbt docker:publishLocal`
+
+
+=== 2. Deploy manifests to minikube
+1. Ensure you are on the right `kubectl` context
+2. `cd deployment`
+3. `kubectl apply -f minikube/`
+
+=== 3. Verify working of server
+1. `curl http://api.vid.app/api/gateway/health`
+- Should return a `200` with response `Server is alive!`
+
+
+==== Note
+1. The generated SSL certificate might need explicit trusting by you on your browser for the first time
+2. For the certificate to be accepted on Android or iOS devices, you have to import the certificate into the device and trust it manually
+- For Android or iOS, copy the `rootCA.pem` or `rootCA.der` file generated in step 1 into the device filesystem. Then, follow device specific instructions to trust the certificate
+- One might require conversion of `.pem` to `.der` or vice versa - make sure you use the right format (conversion is easy via a quick search)
+
+
