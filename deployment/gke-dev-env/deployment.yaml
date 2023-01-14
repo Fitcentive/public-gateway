@@ -58,7 +58,7 @@ spec:
             - name: IMAGE_PROXY_PORT
               value: "10270"
             - name: JWT_ISSUER
-              value: "https://api.fitcentive.xyz"
+              value: "https://auth.fitcentive.xyz"
             - name: KEYCLOAK_SERVER_URL
               value: "http://keycloak-service-http.keycloak/auth"
             - name: RUNTIME_ENVIRONMENT
