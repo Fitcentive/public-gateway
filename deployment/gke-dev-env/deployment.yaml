@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: public-gateway-service
+  namespace: public-gateway
+  labels:
+    app: public-gateway-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: public-gateway-service
+  template:
+    metadata:
+      labels:
+        app: public-gateway-service
+    spec:
+      containers:
+        - name: public-gateway-service
+          image: gcr.io/fitcentive-dev/public-gateway:1.0
+          imagePullPolicy: Always
+          resources:
+            requests:
+              memory: 300Mi
+              cpu: "0.3"
+            limits:
+              memory: 500Mi
+              cpu: "0.5"
+          ports:
+            - name: http-port
+              containerPort: 9000
+          readinessProbe:
+            httpGet:
+              path: /api/gateway/health
+              port: 9000
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          livenessProbe:
+            httpGet:
+              path: /api/gateway/health
+              port: 9000
+            initialDelaySeconds: 120
+            periodSeconds: 15
+          envFrom:
+            - secretRef:
+                name: internal-service-secret
+            - secretRef:
+                name: image-service-secret
+          env:
+            - name: GCP_PROJECT_NAME
+              value: "fitcentive-dev"
+            - name: IMAGE_SERVICE_HOST
+              value: "http://image-service.image-service"
+            - name: IMAGE_SERVICE_PORT
+              value: "10260"
+            - name: IMAGE_PROXY_HOST
+              value: "http://image-proxy.image-proxy"
+            - name: IMAGE_PROXY_PORT
+              value: "10270"
+            - name: JWT_ISSUER
+              value: "https://api.fitcentive.xyz"
+            - name: KEYCLOAK_SERVER_URL
+              value: "http://keycloak.keycloak-service-http/auth"
+            - name: RUNTIME_ENVIRONMENT
+              value: "gke-dev-env"
+

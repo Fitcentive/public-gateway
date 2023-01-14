@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: public-gateway-service
+  namespace: public-gateway
+spec:
+  type: ClusterIP
+  selector:
+    app: public-gateway-service
+  ports:
+    - protocol: TCP
+      name: http
+      port: 9000
