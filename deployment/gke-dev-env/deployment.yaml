@@ -60,7 +60,7 @@ spec:
             - name: JWT_ISSUER
               value: "https://api.fitcentive.xyz"
             - name: KEYCLOAK_SERVER_URL
-              value: "http://keycloak.keycloak-service-http/auth"
+              value: "http://keycloak-service-http.keycloak/auth"
             - name: RUNTIME_ENVIRONMENT
               value: "gke-dev-env"
 
