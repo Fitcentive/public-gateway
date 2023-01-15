@@ -37,6 +37,6 @@ class RestImageService @Inject() (wsClient: WSClient, settingsService: SettingsS
 
   override def fetchImage(imagePath: String, transformParameters: String): Future[WSResponse] =
     wsClient
-      .url(s"$imageProxyBaseUrl/$transformParameters/$imagePath?token=${imageServiceConfig.token}")
+      .url(s"$imageProxyBaseUrl/$transformParameters/files/$imagePath?token=${imageServiceConfig.token}")
       .get()
 }
