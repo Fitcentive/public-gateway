@@ -2,7 +2,7 @@ name := "public-gateway"
 
 version := "1.0"
 
-lazy val `notification` = (project in file("."))
+lazy val `public-gateway` = (project in file("."))
   .enablePlugins(PlayScala)
   .disablePlugins(PlayLogback)
 
