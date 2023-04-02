@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: public-gateway-service
-          image: gcr.io/fitcentive-dev/public-gateway:1.0
+          image: gcr.io/fitcentive-dev-02/public-gateway:1.0
           imagePullPolicy: Always
           resources:
             requests:
@@ -48,7 +48,7 @@ spec:
                 name: image-service-secret
           env:
             - name: GCP_PROJECT_NAME
-              value: "fitcentive-dev"
+              value: "fitcentive-dev-02"
             - name: IMAGE_SERVICE_HOST
               value: "http://image-service.image-service"
             - name: IMAGE_SERVICE_PORT

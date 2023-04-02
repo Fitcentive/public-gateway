@@ -27,6 +27,6 @@ Docker / dockerRepository := {
         url <- sys.env.get("GCLOUD_URL_STAGING")
         name <- sys.env.get("GCLOUD_PROJECT_STAGING")
       } yield s"$url/$name"
-    case Some("dev") | _ => Some("gcr.io/fitcentive-dev")
+    case Some("dev") | _ => Some("gcr.io/fitcentive-dev-02")
   }
 }
