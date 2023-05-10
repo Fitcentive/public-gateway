@@ -1,15 +1,36 @@
 package io.fitcentive.public_gateway.infrastructure.settings
 
 import com.typesafe.config.Config
-import io.fitcentive.public_gateway.domain.config.ProtectedServerConfig
+import io.fitcentive.public_gateway.domain.config.{
+  AdUnitIdsConfig,
+  AppPubSubConfig,
+  ProtectedServerConfig,
+  SubscriptionsConfig,
+  TopicsConfig
+}
 import io.fitcentive.public_gateway.services.SettingsService
-import io.fitcentive.sdk.config.{JwtConfig, SecretConfig}
+import io.fitcentive.sdk.config.{GcpConfig, JwtConfig, SecretConfig}
 import play.api.Configuration
 
 import javax.inject.{Inject, Singleton}
 
 @Singleton
 class AppConfigService @Inject() (config: Configuration) extends SettingsService {
+
+  override def adConfig: AdUnitIdsConfig =
+    AdUnitIdsConfig.fromConfig(config.get[Config]("ads.ad-unit-ids"))
+
+  override def serviceAccountStringCredentials: String =
+    config.get[String]("gcp.pubsub.service-account-string-credentials")
+
+  override def gcpConfig: GcpConfig =
+    GcpConfig(project = config.get[String]("gcp.project"))
+
+  override def pubSubConfig: AppPubSubConfig =
+    AppPubSubConfig(
+      topicsConfig = TopicsConfig.fromConfig(config.get[Config]("gcp.pubsub.topics")),
+      subscriptionsConfig = SubscriptionsConfig.fromConfig(config.get[Config]("gcp.pubsub.subscriptions"))
+    )
 
   override def imageServiceConfig: ProtectedServerConfig =
     ProtectedServerConfig.fromConfig(config.get[Config]("services.image-service"))

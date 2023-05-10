@@ -46,6 +46,10 @@ spec:
                 name: internal-service-secret
             - secretRef:
                 name: image-service-secret
+            - secretRef:
+                name: public-gateway-service-service-account-credentials
+            - secretRef:
+                name: admob-ad-unit-ids
           env:
             - name: GCP_PROJECT_NAME
               value: "fitcentive-dev-02"
@@ -63,4 +67,12 @@ spec:
               value: "http://keycloak-service-http.keycloak/auth"
             - name: RUNTIME_ENVIRONMENT
               value: "gke-dev-env"
+            - name: TOPIC_USER_ENABLE_PREMIUM
+              value: "user-enable-premium"
+            - name: TOPIC_USER_DISABLE_PREMIUM
+              value: "user-disable-premium"
+            - name: SUBSCRIPTION_USER_ENABLE_PREMIUM
+              value: "user-enable-premium"
+            - name: SUBSCRIPTION_USER_DISABLE_PREMIUM
+              value: "user-disable-premium"
 

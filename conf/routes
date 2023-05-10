@@ -9,4 +9,4 @@ GET      /api/gateway/health                                        io.fitcentiv
 POST     /api/gateway/image/upload/*uploadPath                      io.fitcentive.public_gateway.controllers.PublicController.uploadImage(uploadPath: String)
 GET      /api/gateway/image/*imagePath                              io.fitcentive.public_gateway.controllers.PublicController.fetchImage(imagePath: String, transform: Option[String])
 
-      
+GET      /api/gateway/admob-ad-unit-id                              io.fitcentive.public_gateway.controllers.AdController.getAdUnitId(isAndroid: Boolean, adType: String)
