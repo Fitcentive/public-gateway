@@ -1,18 +1,21 @@
 package io.fitcentive.public_gateway.api
 
 import io.fitcentive.public_gateway.domain.ad.AdType
-import io.fitcentive.public_gateway.services.{ImageService, SettingsService}
+import io.fitcentive.public_gateway.services.{ImageService, MessageBusService, SettingsService}
 import io.fitcentive.sdk.error.DomainError
 import play.api.libs.ws.WSResponse
 
 import java.io.File
+import java.util.UUID
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class PublicApi @Inject() (imageService: ImageService, settingsService: SettingsService)(implicit
-  ec: ExecutionContext
-) {
+class PublicApi @Inject() (
+  imageService: ImageService,
+  settingsService: SettingsService,
+  messageBusService: MessageBusService
+)(implicit ec: ExecutionContext) {
 
   def uploadImage(imagePath: String, imageFile: File): Future[Either[DomainError, Unit]] =
     imageService.uploadImage(imagePath, imageFile)
@@ -25,5 +28,8 @@ class PublicApi @Inject() (imageService: ImageService, settingsService: Settings
       if (isAndroid) settingsService.adConfig.androidAdUnitId
       else settingsService.adConfig.iosAdUnitId
     }
+
+  def enablePremiumForUser(userId: UUID): Future[Unit] =
+    messageBusService.publishEnablePremiumForUser(userId)
 
 }

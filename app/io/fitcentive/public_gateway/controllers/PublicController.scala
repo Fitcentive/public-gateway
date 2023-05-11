@@ -51,4 +51,12 @@ class PublicController @Inject() (publicApi: PublicApi, userAuthAction: UserAuth
       }
     }
 
+  def enablePremiumForUser: Action[AnyContent] =
+    userAuthAction.async { implicit request =>
+      publicApi
+        .enablePremiumForUser(request.authorizedUser.userId)
+        .map(_ => Accepted)
+        .recover(resultErrorAsyncHandler)
+    }
+
 }
