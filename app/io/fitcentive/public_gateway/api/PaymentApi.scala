@@ -1,7 +1,12 @@
 package io.fitcentive.public_gateway.api
 
 import com.stripe.model.Subscription
-import io.fitcentive.public_gateway.domain.payment.{CustomerPaymentMethod, PaymentCustomer, StripeSubscription}
+import io.fitcentive.public_gateway.domain.payment.{
+  CustomerPaymentMethod,
+  PaymentCustomer,
+  ProtectedCreditCard,
+  StripeSubscription
+}
 import io.fitcentive.public_gateway.repositories.CustomerRepository
 import io.fitcentive.public_gateway.services.{MessageBusService, PaymentService, UserService}
 
@@ -71,6 +76,26 @@ class PaymentApi @Inject() (
           updatedAt = sub.updatedAt,
         )
     }
+
+  def getProtectedCardDetailsForUser(userId: UUID): Future[Seq[ProtectedCreditCard]] =
+    for {
+      paymentMethods <- customerRepository.getPaymentMethodsForCustomer(userId)
+      protectedCards <- Future.sequence(
+        paymentMethods.map(
+          m =>
+            paymentService
+              .getProtectedCardInfo(m.paymentMethodId)
+              .map(
+                pm =>
+                  ProtectedCreditCard(
+                    lastFour = pm.getCard.getLast4,
+                    expiryMonth = pm.getCard.getExpMonth,
+                    expiryYear = pm.getCard.getExpYear,
+                  )
+              )
+        )
+      )
+    } yield protectedCards
 
   def addPaymentMethod(userId: UUID, paymentMethodId: String): Future[CustomerPaymentMethod] =
     for {

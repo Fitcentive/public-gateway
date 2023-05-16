@@ -6,12 +6,10 @@ import com.stripe.param.{
   CustomerCreateParams,
   CustomerUpdateParams,
   PaymentMethodAttachParams,
-  PaymentMethodCreateParams,
   SubscriptionCancelParams,
   SubscriptionCreateParams
 }
 import io.fitcentive.public_gateway.domain.config.StripeConfig
-import io.fitcentive.public_gateway.domain.payment.CreditCard
 import io.fitcentive.public_gateway.domain.user.User
 import io.fitcentive.public_gateway.services.{PaymentService, SettingsService}
 import play.api.libs.ws.WSClient
@@ -48,28 +46,6 @@ class RestStripeService @Inject() (wsClient: WSClient, settingsService: Settings
     Future.fromTry {
       Try {
         Customer.create(params)
-      }
-    }
-  }
-
-  override def createCardPaymentMethod(creditCard: CreditCard): Future[PaymentMethod] = {
-    val params = PaymentMethodCreateParams
-      .builder()
-      .setType(PaymentMethodCreateParams.Type.CARD)
-      .setCard(
-        PaymentMethodCreateParams.CardDetails
-          .builder()
-          .setNumber(creditCard.cardNumber)
-          .setCvc(creditCard.cvc)
-          .setExpMonth(creditCard.expiryMonth)
-          .setExpYear(creditCard.expiryYear)
-          .build()
-      )
-      .build()
-
-    Future.fromTry {
-      Try {
-        PaymentMethod.create(params)
       }
     }
   }
@@ -149,6 +125,14 @@ class RestStripeService @Inject() (wsClient: WSClient, settingsService: Settings
     Future.fromTry {
       Try {
         Subscription.retrieve(subscriptionId)
+      }
+    }
+  }
+
+  override def getProtectedCardInfo(paymentMethodId: String): Future[PaymentMethod] = {
+    Future.fromTry {
+      Try {
+        PaymentMethod.retrieve(paymentMethodId)
       }
     }
   }

@@ -17,6 +17,14 @@ class PaymentController @Inject() (paymentApi: PaymentApi, userAuthAction: UserA
   with PlayControllerOps
   with ServerErrorHandler {
 
+  def getPaymentMethods: Action[AnyContent] =
+    userAuthAction.async { implicit userRequest =>
+      paymentApi
+        .getProtectedCardDetailsForUser(userRequest.authorizedUser.userId)
+        .map(paymentMethods => Ok(Json.toJson(paymentMethods)))
+        .recover(resultErrorAsyncHandler)
+    }
+
   def addPaymentMethod(p_id: String): Action[AnyContent] =
     userAuthAction.async { implicit userRequest =>
       paymentApi

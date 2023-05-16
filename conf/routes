@@ -12,6 +12,7 @@ GET      /api/gateway/image/*imagePath                              io.fitcentiv
 GET      /api/gateway/admob-ad-unit-id                              io.fitcentive.public_gateway.controllers.AdController.getAdUnitId(isAndroid: Boolean, adType: String)
 
 POST     /api/gateway/payment/method                                io.fitcentive.public_gateway.controllers.PaymentController.addPaymentMethod(p_id: String)
+GET      /api/gateway/payment/method                                io.fitcentive.public_gateway.controllers.PaymentController.getPaymentMethods
 
 POST     /api/gateway/payment/subscribe                             io.fitcentive.public_gateway.controllers.PaymentController.subscribeToPremium(p_id: String)
 DELETE   /api/gateway/payment/subscribe                             io.fitcentive.public_gateway.controllers.PaymentController.cancelPremium

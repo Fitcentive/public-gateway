@@ -13,7 +13,7 @@ create table stripe_users(
 
 create table stripe_user_subscriptions(
     id uuid not null constraint pk_stripe_user_subscriptions primary key,
-    user_id uuid not null,
+    user_id uuid not null constraint fk_stripe_user_subscriptions references stripe_users,
     subscription_id varchar not null,
     customer_id varchar not null,
     is_active boolean not null default false,

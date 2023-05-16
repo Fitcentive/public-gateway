@@ -140,7 +140,7 @@ object AnormStripeCustomerRepository {
        |on conflict (user_id) 
        |do update set
        |  payment_method_id = {paymentMethodId},
-       |  updated_at = {updatedAt}
+       |  updated_at = {now}
        |returning * ;
        |""".stripMargin
 
