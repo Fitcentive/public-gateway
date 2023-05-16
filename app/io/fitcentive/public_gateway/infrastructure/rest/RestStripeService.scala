@@ -144,4 +144,12 @@ class RestStripeService @Inject() (wsClient: WSClient, settingsService: Settings
       }
     } yield ()
   }
+
+  override def getSubscription(subscriptionId: String): Future[Subscription] = {
+    Future.fromTry {
+      Try {
+        Subscription.retrieve(subscriptionId)
+      }
+    }
+  }
 }

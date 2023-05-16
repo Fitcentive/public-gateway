@@ -15,4 +15,5 @@ trait PaymentService {
   def attachPaymentMethodToCustomer(paymentMethodId: String, customerId: String): Future[Unit]
   def createSubscription(customerId: String, defaultPaymentMethodId: String): Future[Subscription]
   def cancelSubscription(subscriptionId: String): Future[Unit]
+  def getSubscription(subscriptionId: String): Future[Subscription]
 }

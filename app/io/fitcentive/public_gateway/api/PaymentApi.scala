@@ -1,7 +1,7 @@
 package io.fitcentive.public_gateway.api
 
 import com.stripe.model.Subscription
-import io.fitcentive.public_gateway.domain.payment.{CustomerPaymentMethod, PaymentCustomer, PaymentSubscription}
+import io.fitcentive.public_gateway.domain.payment.{CustomerPaymentMethod, PaymentCustomer, StripeSubscription}
 import io.fitcentive.public_gateway.repositories.CustomerRepository
 import io.fitcentive.public_gateway.services.{MessageBusService, PaymentService, UserService}
 
@@ -54,8 +54,23 @@ class PaymentApi @Inject() (
       _ <- messageBusService.publishDisablePremiumForUser(userId)
     } yield ()
 
-  def getPremiumSubscriptions(userId: UUID): Future[Seq[PaymentSubscription]] =
-    customerRepository.getSubscriptionsForUser(userId)
+  def getPremiumSubscriptions(userId: UUID): Future[Seq[StripeSubscription]] =
+    for {
+      subs <- customerRepository.getSubscriptionsForUser(userId)
+      stripeSubscriptions <- Future.sequence(subs.map(s => paymentService.getSubscription(s.subscriptionId)))
+    } yield stripeSubscriptions.zip(subs).map {
+      case (stripeSub, sub) =>
+        StripeSubscription(
+          id = sub.id,
+          userId = sub.userId,
+          subscriptionId = sub.subscriptionId,
+          customerId = sub.customerId,
+          startedAt = Instant.ofEpochSecond(stripeSub.getCurrentPeriodStart),
+          validUntil = Instant.ofEpochSecond(stripeSub.getCurrentPeriodEnd),
+          createdAt = sub.createdAt,
+          updatedAt = sub.updatedAt,
+        )
+    }
 
   def addPaymentMethod(userId: UUID, paymentMethodId: String): Future[CustomerPaymentMethod] =
     for {
