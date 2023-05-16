@@ -7,6 +7,7 @@ import com.stripe.param.{
   CustomerUpdateParams,
   PaymentMethodAttachParams,
   PaymentMethodCreateParams,
+  SubscriptionCancelParams,
   SubscriptionCreateParams
 }
 import io.fitcentive.public_gateway.domain.config.StripeConfig
@@ -14,8 +15,8 @@ import io.fitcentive.public_gateway.domain.payment.CreditCard
 import io.fitcentive.public_gateway.domain.user.User
 import io.fitcentive.public_gateway.services.{PaymentService, SettingsService}
 import play.api.libs.ws.WSClient
-import scala.jdk.CollectionConverters._
 
+import scala.jdk.CollectionConverters._
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
@@ -126,5 +127,21 @@ class RestStripeService @Inject() (wsClient: WSClient, settingsService: Settings
         Subscription.create(params)
       }
     }
+  }
+
+  override def cancelSubscription(subscriptionId: String): Future[Unit] = {
+    for {
+      subscription <- Future.fromTry {
+        Try {
+          Subscription.retrieve(subscriptionId)
+        }
+      }
+      _ <- Future.fromTry {
+        Try {
+          val params = SubscriptionCancelParams.builder().build()
+          subscription.cancel(params)
+        }
+      }
+    } yield ()
   }
 }

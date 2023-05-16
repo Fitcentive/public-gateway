@@ -1,7 +1,7 @@
 package io.fitcentive.public_gateway.infrastructure.database.sql
 
 import anorm.{Macro, RowParser}
-import io.fitcentive.public_gateway.domain.payment.{PaymentCustomer, PaymentSubscription}
+import io.fitcentive.public_gateway.domain.payment.{CustomerPaymentMethod, PaymentCustomer, PaymentSubscription}
 import io.fitcentive.public_gateway.repositories.CustomerRepository
 import io.fitcentive.sdk.infrastructure.contexts.DatabaseExecutionContext
 import io.fitcentive.sdk.infrastructure.database.DatabaseClient
@@ -39,6 +39,42 @@ class AnormStripeCustomerRepository @Inject() (val db: Database)(implicit val db
     Future {
       getRecords(SQL_GET_SUBSCRIPTIONS_FOR_USER, "userId" -> userId)(subscriptionRowParser)
         .map(_.toDomain)
+    }
+
+  override def upsertPaymentMethodForCustomer(
+    userId: UUID,
+    customerId: String,
+    paymentMethodId: String
+  ): Future[CustomerPaymentMethod] =
+    Future {
+      Instant.now.pipe { now =>
+        executeSqlWithExpectedReturn[UserPaymentMethodRow](
+          SQL_UPSERT_USER_PAYMENT_METHOD,
+          Seq("userId" -> userId, "customerId" -> customerId, "paymentMethodId" -> paymentMethodId, "now" -> now)
+        )(userPaymentRowParser).toDomain
+      }
+    }
+
+  override def getPaymentMethodsForCustomer(userId: UUID): Future[Seq[CustomerPaymentMethod]] =
+    Future {
+      getRecords(SQL_GET_USER_PAYMENT_METHODS, "userId" -> userId)(userPaymentRowParser)
+        .map(_.toDomain)
+    }
+
+  override def deletePaymentMethodForCustomer(userId: UUID, paymentMethodId: String): Future[Unit] =
+    Future {
+      executeSqlWithoutReturning(
+        SQL_DELETE_USER_PAYMENT_METHOD,
+        Seq("userId" -> userId, "paymentMethodId" -> paymentMethodId)
+      )
+    }
+
+  override def deleteSubscriptionForUser(userId: UUID, subscriptionId: String): Future[Unit] =
+    Future {
+      executeSqlWithoutReturning(
+        SQL_DELETE_SUBSCRIPTION_FOR_USER,
+        Seq("userId" -> userId, "subscriptionId" -> subscriptionId)
+      )
     }
 
   override def createSubscriptionForUser(
@@ -90,12 +126,61 @@ object AnormStripeCustomerRepository {
        |returning * ;
        |""".stripMargin
 
+  private val SQL_DELETE_SUBSCRIPTION_FOR_USER: String =
+    s"""
+       |delete from stripe_user_subscriptions
+       |where user_id = {userId}::uuid 
+       |and subscription_id = {subscriptionId} ;
+       |""".stripMargin
+
+  private val SQL_UPSERT_USER_PAYMENT_METHOD: String =
+    s"""
+       |insert into stripe_user_payment_methods (user_id, customer_id, payment_method_id, created_at, updated_at)
+       |values ({userId}::uuid, {customerId}, {paymentMethodId}, {now}, {now})
+       |on conflict (user_id) 
+       |do update set
+       |  payment_method_id = {paymentMethodId},
+       |  updated_at = {updatedAt}
+       |returning * ;
+       |""".stripMargin
+
+  private val SQL_GET_USER_PAYMENT_METHODS: String =
+    s"""
+       |select *
+       |from stripe_user_payment_methods
+       |where user_id = {userId}::uuid ;
+       |""".stripMargin
+
+  private val SQL_DELETE_USER_PAYMENT_METHOD: String =
+    s"""
+       |delete from stripe_user_payment_methods
+       |where user_id = {userId}::uuid 
+       |and payment_method_id = {paymentMethodId} ;
+       |""".stripMargin
+
   private val SQL_GET_SUBSCRIPTIONS_FOR_USER: String =
     s"""
        |select *
        |from stripe_user_subscriptions 
        |where user_id = {userId}::uuid ;
        |""".stripMargin
+
+  private case class UserPaymentMethodRow(
+    user_id: UUID,
+    customer_id: String,
+    payment_method_id: String,
+    created_at: Instant,
+    updated_at: Instant
+  ) {
+    def toDomain: CustomerPaymentMethod =
+      CustomerPaymentMethod(
+        userId = user_id,
+        customerId = customer_id,
+        paymentMethodId = payment_method_id,
+        createdAt = created_at,
+        updatedAt = updated_at
+      )
+  }
 
   private case class CustomerRow(user_id: UUID, customer_id: String, created_at: Instant, updated_at: Instant) {
     def toDomain: PaymentCustomer =
@@ -125,6 +210,7 @@ object AnormStripeCustomerRepository {
       )
   }
 
+  private val userPaymentRowParser: RowParser[UserPaymentMethodRow] = Macro.namedParser[UserPaymentMethodRow]
   private val customerRowParser: RowParser[CustomerRow] = Macro.namedParser[CustomerRow]
   private val subscriptionRowParser: RowParser[SubscriptionRow] = Macro.namedParser[SubscriptionRow]
 }

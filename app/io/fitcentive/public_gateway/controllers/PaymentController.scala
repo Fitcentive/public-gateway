@@ -17,11 +17,35 @@ class PaymentController @Inject() (paymentApi: PaymentApi, userAuthAction: UserA
   with PlayControllerOps
   with ServerErrorHandler {
 
+  def addPaymentMethod(p_id: String): Action[AnyContent] =
+    userAuthAction.async { implicit userRequest =>
+      paymentApi
+        .addPaymentMethod(userRequest.authorizedUser.userId, p_id)
+        .map(paymentMethod => Ok(Json.toJson(paymentMethod)))
+        .recover(resultErrorAsyncHandler)
+    }
+
   def subscribeToPremium(p_id: String): Action[AnyContent] =
     userAuthAction.async { implicit userRequest =>
       paymentApi
         .createPremiumSubscriptionForCustomer(userRequest.authorizedUser.userId, p_id)
         .map(subscription => Ok(Json.toJson(subscription.getId)))
+        .recover(resultErrorAsyncHandler)
+    }
+
+  def cancelPremium: Action[AnyContent] =
+    userAuthAction.async { implicit userRequest =>
+      paymentApi
+        .cancelPremiumSubscriptionForCustomer(userRequest.authorizedUser.userId)
+        .map(_ => Accepted)
+        .recover(resultErrorAsyncHandler)
+    }
+
+  def getPremiumSubscriptions: Action[AnyContent] =
+    userAuthAction.async { implicit userRequest =>
+      paymentApi
+        .getPremiumSubscriptions(userRequest.authorizedUser.userId)
+        .map(subscriptions => Ok(Json.toJson(subscriptions)))
         .recover(resultErrorAsyncHandler)
     }
 
