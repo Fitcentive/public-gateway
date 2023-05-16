@@ -5,17 +5,22 @@ import io.fitcentive.public_gateway.domain.config.{
   AdUnitIdsConfig,
   AppPubSubConfig,
   ProtectedServerConfig,
+  StripeConfig,
   SubscriptionsConfig,
   TopicsConfig
 }
 import io.fitcentive.public_gateway.services.SettingsService
-import io.fitcentive.sdk.config.{GcpConfig, JwtConfig, SecretConfig}
+import io.fitcentive.sdk.config.{GcpConfig, JwtConfig, SecretConfig, ServerConfig}
 import play.api.Configuration
 
 import javax.inject.{Inject, Singleton}
 
 @Singleton
 class AppConfigService @Inject() (config: Configuration) extends SettingsService {
+
+  override def userServiceConfig: ServerConfig = ServerConfig.fromConfig(config.get[Config]("services.user-service"))
+
+  override def stripeConfig: StripeConfig = StripeConfig.fromConfig(config.get[Config]("stripe"))
 
   override def adConfig: AdUnitIdsConfig =
     AdUnitIdsConfig.fromConfig(config.get[Config]("ads.ad-unit-ids"))

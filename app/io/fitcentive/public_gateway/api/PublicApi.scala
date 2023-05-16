@@ -29,7 +29,4 @@ class PublicApi @Inject() (
       else settingsService.adConfig.iosAdUnitId
     }
 
-  def enablePremiumForUser(userId: UUID): Future[Unit] =
-    messageBusService.publishEnablePremiumForUser(userId)
-
 }

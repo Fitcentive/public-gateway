@@ -16,6 +16,17 @@ spec:
         app: public-gateway-service
     spec:
       containers:
+        # Sidecar container for cloudsql-proxy to connect to CloudSql database - recommended approach by Google for GKE
+        - name: cloudsql-proxy
+          image: gcr.io/cloudsql-docker/gce-proxy:1.33.1
+          command:
+            - /cloud_sql_proxy
+            - -instances=fitcentive-dev-02:northamerica-northeast2:gke-dev-env-cloud-sql-instance:=tcp:5432
+            - -credential_file=/secrets/cloudsql/credentials.json
+          volumeMounts:
+            - name: cloudsql-creds
+              mountPath: /secrets/cloudsql
+              readOnly: true
         - name: public-gateway-service
           image: gcr.io/fitcentive-dev-02/public-gateway:1.0
           imagePullPolicy: Always
@@ -50,6 +61,8 @@ spec:
                 name: public-gateway-service-service-account-credentials
             - secretRef:
                 name: admob-ad-unit-ids
+            - secretRef:
+                name: public-gateway-service-cloudsql-database-credentials
           env:
             - name: GCP_PROJECT_NAME
               value: "fitcentive-dev-02"
@@ -75,4 +88,24 @@ spec:
               value: "user-enable-premium"
             - name: SUBSCRIPTION_USER_DISABLE_PREMIUM
               value: "user-disable-premium"
+            - name: STRIPE_API_KEY
+              value: "sk_test_51N6ftREGzewRelCEpk4IRNoORELFmUpbFYMa36OcFoMBGbDKERv1IdD45vacoDAkrFOkhBmwTM9LgEybxqT8N5GC00DRJkUwDn"
+            - name: STRIPE_BASE_URL
+              value: "https://api.stripe.com/v1"
+            - name: USER_SERVICE_HOST
+              value: "http://user-service.user"
+            - name: USER_SERVICE_PORT
+              value: "9000"
+            - name: SRIPE_PRODUCT_ID
+              value: "prod_Nte5eUFCJAQkJv"
+            - name: STRIPE_PRODUCT_PRICE_ID
+              value: "price_1N7qn1EGzewRelCEYmI1iadM"
+            - name: DB_HOST
+              value: "localhost"
+            - name: DB_PORT
+              value: "5432"
+      volumes:
+        - name: cloudsql-creds
+          secret:
+            secretName: public-gateway-service-cloudsql-instance-credentials
 

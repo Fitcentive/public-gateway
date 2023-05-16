@@ -11,4 +11,4 @@ GET      /api/gateway/image/*imagePath                              io.fitcentiv
 
 GET      /api/gateway/admob-ad-unit-id                              io.fitcentive.public_gateway.controllers.AdController.getAdUnitId(isAndroid: Boolean, adType: String)
 
-GET      /api/gateway/enable-premium                                io.fitcentive.public_gateway.controllers.PublicController.enablePremiumForUser
+POST     /api/gateway/payment/subscribe                             io.fitcentive.public_gateway.controllers.PaymentController.subscribeToPremium(p_id: String)
