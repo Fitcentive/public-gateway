@@ -51,6 +51,24 @@ class RestStripeService @Inject() (wsClient: WSClient, settingsService: Settings
   }
 
   override def attachPaymentMethodToCustomer(paymentMethodId: String, customerId: String): Future[Unit] = {
+    val attachParams = PaymentMethodAttachParams
+      .builder()
+      .setCustomer(customerId)
+      .build()
+
+    Future
+      .fromTry {
+        Try {
+          val paymentMethod = PaymentMethod.retrieve(paymentMethodId)
+          paymentMethod.attach(attachParams)
+        }
+      }
+  }
+
+  override def setPaymentMethodAsDefaultForSubscriptionForCustomer(
+    paymentMethodId: String,
+    customerId: String
+  ): Future[Unit] = {
     val updateParams = CustomerUpdateParams
       .builder()
       .setInvoiceSettings(
@@ -58,29 +76,13 @@ class RestStripeService @Inject() (wsClient: WSClient, settingsService: Settings
       )
       .build()
 
-    val attachParams = PaymentMethodAttachParams
-      .builder()
-      .setCustomer(customerId)
-      .build()
-
-    for {
-      _ <-
-        Future
-          .fromTry {
-            Try {
-              val paymentMethod = PaymentMethod.retrieve(paymentMethodId)
-              paymentMethod.attach(attachParams)
-            }
-          }
-      _ <-
-        Future
-          .fromTry {
-            Try {
-              val customer = Customer.retrieve(customerId)
-              customer.update(updateParams)
-            }
-          }
-    } yield ()
+    Future
+      .fromTry {
+        Try {
+          val customer = Customer.retrieve(customerId)
+          customer.update(updateParams)
+        }
+      }
   }
 
   override def createSubscription(customerId: String, defaultPaymentMethodId: String): Future[Subscription] = {

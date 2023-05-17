@@ -33,6 +33,14 @@ class PaymentController @Inject() (paymentApi: PaymentApi, userAuthAction: UserA
         .recover(resultErrorAsyncHandler)
     }
 
+  def setPaymentAsSubscriptionDefault(p_id: String): Action[AnyContent] =
+    userAuthAction.async { implicit userRequest =>
+      paymentApi
+        .setPaymentMethodAsDefaultForUserSubscriptions(userRequest.authorizedUser.userId, p_id)
+        .map(_ => NoContent)
+        .recover(resultErrorAsyncHandler)
+    }
+
   def subscribeToPremium(p_id: String): Action[AnyContent] =
     userAuthAction.async { implicit userRequest =>
       paymentApi

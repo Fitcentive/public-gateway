@@ -29,9 +29,16 @@ class PaymentApi @Inject() (
   def createPremiumSubscriptionForCustomer(userId: UUID, paymentMethodId: String): Future[Subscription] =
     for {
       paymentCustomer <- getPaymentCustomer(userId)
-      customerPaymentMethod <-
-        customerRepository.upsertPaymentMethodForCustomer(userId, paymentCustomer.customerId, paymentMethodId)
+      customerPaymentMethod <- customerRepository.addPaymentMethodForCustomer(
+        UUID.randomUUID(),
+        userId,
+        paymentCustomer.customerId,
+        paymentMethodId,
+        isDefault = true,
+      )
       _ <- paymentService.attachPaymentMethodToCustomer(paymentMethodId, paymentCustomer.customerId)
+      _ <-
+        paymentService.setPaymentMethodAsDefaultForSubscriptionForCustomer(paymentMethodId, paymentCustomer.customerId)
       subscription <- paymentService.createSubscription(paymentCustomer.customerId, paymentMethodId)
       _ <- customerRepository.createSubscriptionForUser(
         id = UUID.randomUUID(),
@@ -91,6 +98,8 @@ class PaymentApi @Inject() (
                     lastFour = pm.getCard.getLast4,
                     expiryMonth = pm.getCard.getExpMonth,
                     expiryYear = pm.getCard.getExpYear,
+                    isDefault = m.isDefault,
+                    paymentMethodId = m.paymentMethodId,
                   )
               )
         )
@@ -100,9 +109,28 @@ class PaymentApi @Inject() (
   def addPaymentMethod(userId: UUID, paymentMethodId: String): Future[CustomerPaymentMethod] =
     for {
       paymentCustomer <- getPaymentCustomer(userId)
-      customerPaymentMethod <-
-        customerRepository.upsertPaymentMethodForCustomer(userId, paymentCustomer.customerId, paymentMethodId)
+      _ <- paymentService.attachPaymentMethodToCustomer(paymentMethodId, paymentCustomer.customerId)
+      customerPaymentMethod <- customerRepository.addPaymentMethodForCustomer(
+        UUID.randomUUID(),
+        userId,
+        paymentCustomer.customerId,
+        paymentMethodId,
+        isDefault = false,
+      )
     } yield customerPaymentMethod
+
+  def setPaymentMethodAsDefaultForUserSubscriptions(userId: UUID, paymentMethodId: String): Future[Unit] =
+    for {
+      paymentCustomer <- getPaymentCustomer(userId)
+      _ <-
+        paymentService.setPaymentMethodAsDefaultForSubscriptionForCustomer(paymentMethodId, paymentCustomer.customerId)
+      customerPaymentMethods <- customerRepository.getPaymentMethodsForCustomer(userId)
+      _ <- Future.sequence(
+        customerPaymentMethods
+          .map(pm => customerRepository.setPaymentMethodAsNonDefaultForCustomer(userId, pm.paymentMethodId))
+      )
+      _ <- customerRepository.setPaymentMethodAsDefaultForCustomer(userId, paymentMethodId)
+    } yield ()
 
   private def getPaymentCustomer(userId: UUID): Future[PaymentCustomer] =
     for {

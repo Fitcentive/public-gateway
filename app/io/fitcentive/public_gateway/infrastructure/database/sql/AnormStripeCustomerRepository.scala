@@ -41,16 +41,41 @@ class AnormStripeCustomerRepository @Inject() (val db: Database)(implicit val db
         .map(_.toDomain)
     }
 
-  override def upsertPaymentMethodForCustomer(
+  override def setPaymentMethodAsDefaultForCustomer(userId: UUID, paymentMethodId: String): Future[Unit] =
+    Future {
+      executeSqlWithoutReturning(
+        SQL_SET_USER_PAYMENT_METHOD_AS_DEFAULT,
+        Seq("userId" -> userId, "paymentMethodId" -> paymentMethodId)
+      )
+    }
+
+  override def setPaymentMethodAsNonDefaultForCustomer(userId: UUID, paymentMethodId: String): Future[Unit] =
+    Future {
+      executeSqlWithoutReturning(
+        SQL_SET_USER_PAYMENT_METHOD_AS_NON_DEFAULT,
+        Seq("userId" -> userId, "paymentMethodId" -> paymentMethodId)
+      )
+    }
+
+  override def addPaymentMethodForCustomer(
+    id: UUID,
     userId: UUID,
     customerId: String,
-    paymentMethodId: String
+    paymentMethodId: String,
+    isDefault: Boolean,
   ): Future[CustomerPaymentMethod] =
     Future {
       Instant.now.pipe { now =>
         executeSqlWithExpectedReturn[UserPaymentMethodRow](
-          SQL_UPSERT_USER_PAYMENT_METHOD,
-          Seq("userId" -> userId, "customerId" -> customerId, "paymentMethodId" -> paymentMethodId, "now" -> now)
+          SQL_ADD_USER_PAYMENT_METHOD,
+          Seq(
+            "id" -> id,
+            "userId" -> userId,
+            "customerId" -> customerId,
+            "paymentMethodId" -> paymentMethodId,
+            "isDefault" -> isDefault,
+            "now" -> now
+          )
         )(userPaymentRowParser).toDomain
       }
     }
@@ -133,14 +158,10 @@ object AnormStripeCustomerRepository {
        |and subscription_id = {subscriptionId} ;
        |""".stripMargin
 
-  private val SQL_UPSERT_USER_PAYMENT_METHOD: String =
+  private val SQL_ADD_USER_PAYMENT_METHOD: String =
     s"""
-       |insert into stripe_user_payment_methods (user_id, customer_id, payment_method_id, created_at, updated_at)
-       |values ({userId}::uuid, {customerId}, {paymentMethodId}, {now}, {now})
-       |on conflict (user_id) 
-       |do update set
-       |  payment_method_id = {paymentMethodId},
-       |  updated_at = {now}
+       |insert into stripe_user_payment_methods (id, user_id, customer_id, payment_method_id, is_default, created_at, updated_at)
+       |values ({id}::uuid, {userId}::uuid, {customerId}, {paymentMethodId}, {isDefault}, {now}, {now})
        |returning * ;
        |""".stripMargin
 
@@ -158,6 +179,22 @@ object AnormStripeCustomerRepository {
        |and payment_method_id = {paymentMethodId} ;
        |""".stripMargin
 
+  private val SQL_SET_USER_PAYMENT_METHOD_AS_DEFAULT: String =
+    s"""
+       |update stripe_user_payment_methods
+       |set is_default = true
+       |where user_id = {userId}::uuid 
+       |and payment_method_id = {paymentMethodId} ;
+       |""".stripMargin
+
+  private val SQL_SET_USER_PAYMENT_METHOD_AS_NON_DEFAULT: String =
+    s"""
+       |update stripe_user_payment_methods
+       |set is_default = false
+       |where user_id = {userId}::uuid 
+       |and payment_method_id = {paymentMethodId} ;
+       |""".stripMargin
+
   private val SQL_GET_SUBSCRIPTIONS_FOR_USER: String =
     s"""
        |select *
@@ -166,17 +203,21 @@ object AnormStripeCustomerRepository {
        |""".stripMargin
 
   private case class UserPaymentMethodRow(
+    id: UUID,
     user_id: UUID,
     customer_id: String,
     payment_method_id: String,
+    is_default: Boolean,
     created_at: Instant,
     updated_at: Instant
   ) {
     def toDomain: CustomerPaymentMethod =
       CustomerPaymentMethod(
+        id = id,
         userId = user_id,
         customerId = customer_id,
         paymentMethodId = payment_method_id,
+        isDefault = is_default,
         createdAt = created_at,
         updatedAt = updated_at
       )

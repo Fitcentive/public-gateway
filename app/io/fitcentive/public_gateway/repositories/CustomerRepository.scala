@@ -22,11 +22,15 @@ trait CustomerRepository {
     validUntil: Instant
   ): Future[PaymentSubscription]
   def deleteSubscriptionForUser(userId: UUID, subscriptionId: String): Future[Unit]
-  def upsertPaymentMethodForCustomer(
+  def addPaymentMethodForCustomer(
+    id: UUID,
     userId: UUID,
     customerId: String,
-    paymentMethodId: String
+    paymentMethodId: String,
+    isDefault: Boolean,
   ): Future[CustomerPaymentMethod]
+  def setPaymentMethodAsDefaultForCustomer(userId: UUID, paymentMethodId: String): Future[Unit]
+  def setPaymentMethodAsNonDefaultForCustomer(userId: UUID, paymentMethodId: String): Future[Unit]
   def getPaymentMethodsForCustomer(userId: UUID): Future[Seq[CustomerPaymentMethod]]
   def deletePaymentMethodForCustomer(userId: UUID, paymentMethodId: String): Future[Unit]
 }

@@ -13,14 +13,25 @@ create table stripe_users(
 
 create table stripe_user_subscriptions(
     id uuid not null constraint pk_stripe_user_subscriptions primary key,
-    user_id uuid not null constraint fk_stripe_user_subscriptions references stripe_users,
+    user_id uuid not null,
     subscription_id varchar not null,
     customer_id varchar not null,
     is_active boolean not null default false,
     valid_until timestamp not null,
     created_at timestamp not null default now(),
-    updated_at timestamp not null default now()
+    updated_at timestamp not null default now(),
+    constraint fk_stripe_user_subscriptions foreign key (user_id) references stripe_users(user_id) on delete cascade
 );
 
+create table stripe_user_payment_methods(
+    id uuid not null constraint pk_stripe_user_payment_methods primary key,
+    user_id uuid not null,
+    customer_id varchar not null,
+    payment_method_id varchar not null,
+    is_default boolean not null default false,
+    created_at timestamp not null default now(),
+    updated_at timestamp not null default now(),
+    constraint fk_stripe_user_payment_methods foreign key (user_id) references stripe_users(user_id) on delete cascade
+);
 
 # -- !Downs

@@ -6,9 +6,11 @@ import java.time.Instant
 import java.util.UUID
 
 case class CustomerPaymentMethod(
+  id: UUID,
   userId: UUID,
   customerId: String,
   paymentMethodId: String,
+  isDefault: Boolean,
   createdAt: Instant,
   updatedAt: Instant
 )
