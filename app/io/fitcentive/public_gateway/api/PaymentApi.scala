@@ -70,6 +70,7 @@ class PaymentApi @Inject() (
    */
 
   // todo - we currently have at most 1 sub per user, do we need to enforce it?
+  // When a user cancels premium, we also delete all previously saved user payment methods
   def cancelPremiumSubscriptionForCustomer(userId: UUID): Future[Unit] =
     for {
       subscriptions <- customerRepository.getSubscriptionsForUser(userId)
@@ -80,6 +81,13 @@ class PaymentApi @Inject() (
         subscriptions
           .map(_.subscriptionId)
           .map(subscriptionId => customerRepository.deleteSubscriptionForUser(userId, subscriptionId))
+      )
+      paymentMethods <- customerRepository.getPaymentMethodsForCustomer(userId)
+      _ <- Future.sequence(
+        paymentMethods.map(pm => paymentService.removePaymentMethodFromCustomer(pm.paymentMethodId, pm.customerId))
+      )
+      _ <- Future.sequence(
+        paymentMethods.map(pm => customerRepository.deletePaymentMethodForCustomer(userId, pm.paymentMethodId))
       )
       _ <- messageBusService.publishDisablePremiumForUser(userId)
     } yield ()
