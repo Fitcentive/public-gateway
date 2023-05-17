@@ -1,6 +1,7 @@
 package io.fitcentive.public_gateway.api
 
-import com.stripe.model.Subscription
+import com.stripe.exception.StripeException
+import com.stripe.model.{StripeError, Subscription}
 import io.fitcentive.public_gateway.domain.payment.{
   CustomerPaymentMethod,
   PaymentCustomer,
@@ -9,12 +10,14 @@ import io.fitcentive.public_gateway.domain.payment.{
 }
 import io.fitcentive.public_gateway.repositories.CustomerRepository
 import io.fitcentive.public_gateway.services.{MessageBusService, PaymentService, UserService}
+import io.fitcentive.sdk.logging.AppLogger
 
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.UUID
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 @Singleton
 class PaymentApi @Inject() (
@@ -29,15 +32,7 @@ class PaymentApi @Inject() (
   def createPremiumSubscriptionForCustomer(userId: UUID, paymentMethodId: String): Future[Subscription] =
     for {
       paymentCustomer <- getPaymentCustomer(userId)
-      customerPaymentMethod <- customerRepository.addPaymentMethodForCustomer(
-        UUID.randomUUID(),
-        userId,
-        paymentCustomer.customerId,
-        paymentMethodId,
-        isDefault = true,
-      )
       _ <- paymentService.attachPaymentMethodToCustomer(paymentMethodId, paymentCustomer.customerId)
-      _ <- paymentService.setPaymentMethodAsDefaultForCustomer(paymentMethodId, paymentCustomer.customerId)
       subscription <- paymentService.createSubscription(paymentCustomer.customerId, paymentMethodId)
       _ <- customerRepository.createSubscriptionForUser(
         id = UUID.randomUUID(),
@@ -47,8 +42,32 @@ class PaymentApi @Inject() (
         isActive = true,
         validUntil = Instant.now.plus(32, ChronoUnit.DAYS)
       )
+      _ <- paymentService.setPaymentMethodAsDefaultForCustomer(paymentMethodId, paymentCustomer.customerId)
+      _ <- customerRepository.addPaymentMethodForCustomer(
+        UUID.randomUUID(),
+        userId,
+        paymentCustomer.customerId,
+        paymentMethodId,
+        isDefault = true,
+      )
       _ <- messageBusService.publishEnablePremiumForUser(userId)
     } yield subscription
+
+  /*
+  NOTE - we are not using the recoverWith block for above, as declined payment methods do not seem to attach to the customer_id to begin with
+         This saves us a false positive failure of the type -
+            "The payment method you provided is not attached to a customer so detachment is impossible"
+  ).recoverWith {
+      case e: StripeException =>
+        logError(s"StripeException: ${e.getMessage}")
+        getPaymentCustomer(userId)
+          .flatMap(
+            paymentCustomer =>
+              paymentService.removePaymentMethodFromCustomer(paymentMethodId, paymentCustomer.customerId)
+          )
+          .flatMap(_ => Future.failed(e))
+    }
+   */
 
   // todo - we currently have at most 1 sub per user, do we need to enforce it?
   def cancelPremiumSubscriptionForCustomer(userId: UUID): Future[Unit] =
