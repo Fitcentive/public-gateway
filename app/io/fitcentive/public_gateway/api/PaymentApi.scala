@@ -37,8 +37,7 @@ class PaymentApi @Inject() (
         isDefault = true,
       )
       _ <- paymentService.attachPaymentMethodToCustomer(paymentMethodId, paymentCustomer.customerId)
-      _ <-
-        paymentService.setPaymentMethodAsDefaultForSubscriptionForCustomer(paymentMethodId, paymentCustomer.customerId)
+      _ <- paymentService.setPaymentMethodAsDefaultForCustomer(paymentMethodId, paymentCustomer.customerId)
       subscription <- paymentService.createSubscription(paymentCustomer.customerId, paymentMethodId)
       _ <- customerRepository.createSubscriptionForUser(
         id = UUID.randomUUID(),
@@ -119,37 +118,48 @@ class PaymentApi @Inject() (
       )
     } yield customerPaymentMethod
 
-  def deletePaymentMethod(userId: UUID, paymentMethodId: String): Future[Unit] =
+  def deletePaymentMethod(userId: UUID, paymentMethodIdToRemove: String): Future[Unit] =
     for {
       paymentCustomer <- getPaymentCustomer(userId)
-      _ <- paymentService.removePaymentMethodFromCustomer(paymentMethodId, paymentCustomer.customerId)
-      _ <- customerRepository.deletePaymentMethodForCustomer(userId, paymentMethodId)
+      _ <- paymentService.removePaymentMethodFromCustomer(paymentMethodIdToRemove, paymentCustomer.customerId)
+      _ <- customerRepository.deletePaymentMethodForCustomer(userId, paymentMethodIdToRemove)
       customerPaymentMethods <- customerRepository.getPaymentMethodsForCustomer(userId)
       _ <- Future.sequence(
         customerPaymentMethods
           .map(pm => customerRepository.setPaymentMethodAsNonDefaultForCustomer(userId, pm.paymentMethodId))
       )
+      subscriptions <- customerRepository.getSubscriptionsForUser(userId)
+      subscriptionDefaultPaymentMethods <-
+        Future.sequence(subscriptions.map(s => paymentService.getPaymentMethodForSubscription(s.subscriptionId)))
       _ <- {
-        if (customerPaymentMethods.nonEmpty)
+        if (customerPaymentMethods.nonEmpty) {
+          val newDefaultPaymentId = customerPaymentMethods.head.paymentMethodId
           for {
-            _ <- customerRepository.setPaymentMethodAsDefaultForCustomer(
-              userId,
-              customerPaymentMethods.head.paymentMethodId
-            )
-            _ <- paymentService.setPaymentMethodAsDefaultForSubscriptionForCustomer(
-              customerPaymentMethods.head.paymentMethodId,
-              paymentCustomer.customerId
-            )
+            _ <- customerRepository.setPaymentMethodAsDefaultForCustomer(userId, newDefaultPaymentId)
+            _ <- paymentService.setPaymentMethodAsDefaultForCustomer(newDefaultPaymentId, paymentCustomer.customerId)
+            // Change defaults for subscription if needed - this is required in case the default payment method is being removed
+            _ <- Future.sequence(subscriptions.zip(subscriptionDefaultPaymentMethods).map {
+              case (subscription, defaultPaymentMethod) =>
+                if (defaultPaymentMethod == paymentMethodIdToRemove)
+                  paymentService
+                    .setPaymentMethodAsDefaultForSubscription(newDefaultPaymentId, subscription.subscriptionId)
+                else
+                  Future.unit
+            })
           } yield ()
-        else Future.unit
+        } else Future.unit
       }
     } yield ()
 
   def setPaymentMethodAsDefaultForUserSubscriptions(userId: UUID, paymentMethodId: String): Future[Unit] =
     for {
       paymentCustomer <- getPaymentCustomer(userId)
-      _ <-
-        paymentService.setPaymentMethodAsDefaultForSubscriptionForCustomer(paymentMethodId, paymentCustomer.customerId)
+      _ <- paymentService.setPaymentMethodAsDefaultForCustomer(paymentMethodId, paymentCustomer.customerId)
+      subscriptions <- customerRepository.getSubscriptionsForUser(userId)
+      _ <- Future.sequence(
+        subscriptions
+          .map(s => paymentService.setPaymentMethodAsDefaultForSubscription(paymentMethodId, s.subscriptionId))
+      )
       customerPaymentMethods <- customerRepository.getPaymentMethodsForCustomer(userId)
       _ <- Future.sequence(
         customerPaymentMethods

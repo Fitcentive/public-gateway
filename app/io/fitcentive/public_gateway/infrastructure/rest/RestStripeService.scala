@@ -8,7 +8,8 @@ import com.stripe.param.{
   PaymentMethodAttachParams,
   PaymentMethodDetachParams,
   SubscriptionCancelParams,
-  SubscriptionCreateParams
+  SubscriptionCreateParams,
+  SubscriptionUpdateParams
 }
 import io.fitcentive.public_gateway.domain.config.StripeConfig
 import io.fitcentive.public_gateway.domain.user.User
@@ -80,10 +81,33 @@ class RestStripeService @Inject() (wsClient: WSClient, settingsService: Settings
       }
   }
 
-  override def setPaymentMethodAsDefaultForSubscriptionForCustomer(
+  override def getPaymentMethodForSubscription(subscriptionId: String): Future[String] = {
+    Future.fromTry {
+      Try {
+        val sub = Subscription.retrieve(subscriptionId)
+        sub.getDefaultPaymentMethod
+      }
+    }
+  }
+
+  override def setPaymentMethodAsDefaultForSubscription(
     paymentMethodId: String,
-    customerId: String
+    subscriptionId: String
   ): Future[Unit] = {
+    val subscriptionUpdateParams = SubscriptionUpdateParams
+      .builder()
+      .setDefaultPaymentMethod(paymentMethodId)
+      .build()
+
+    Future.fromTry {
+      Try {
+        val sub = Subscription.retrieve(subscriptionId)
+        sub.update(subscriptionUpdateParams)
+      }
+    }
+  }
+
+  override def setPaymentMethodAsDefaultForCustomer(paymentMethodId: String, customerId: String): Future[Unit] = {
     val updateParams = CustomerUpdateParams
       .builder()
       .setInvoiceSettings(
