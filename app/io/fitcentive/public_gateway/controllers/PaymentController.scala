@@ -33,6 +33,14 @@ class PaymentController @Inject() (paymentApi: PaymentApi, userAuthAction: UserA
         .recover(resultErrorAsyncHandler)
     }
 
+  def deletePaymentMethod(p_id: String): Action[AnyContent] =
+    userAuthAction.async { implicit userRequest =>
+      paymentApi
+        .deletePaymentMethod(userRequest.authorizedUser.userId, p_id)
+        .map(_ => NoContent)
+        .recover(resultErrorAsyncHandler)
+    }
+
   def setPaymentAsSubscriptionDefault(p_id: String): Action[AnyContent] =
     userAuthAction.async { implicit userRequest =>
       paymentApi

@@ -6,6 +6,7 @@ import com.stripe.param.{
   CustomerCreateParams,
   CustomerUpdateParams,
   PaymentMethodAttachParams,
+  PaymentMethodDetachParams,
   SubscriptionCancelParams,
   SubscriptionCreateParams
 }
@@ -48,6 +49,20 @@ class RestStripeService @Inject() (wsClient: WSClient, settingsService: Settings
         Customer.create(params)
       }
     }
+  }
+
+  override def removePaymentMethodFromCustomer(paymentMethodId: String, customerId: String): Future[Unit] = {
+    val detachParams = PaymentMethodDetachParams
+      .builder()
+      .build()
+
+    Future
+      .fromTry {
+        Try {
+          val paymentMethod = PaymentMethod.retrieve(paymentMethodId)
+          paymentMethod.detach(detachParams)
+        }
+      }
   }
 
   override def attachPaymentMethodToCustomer(paymentMethodId: String, customerId: String): Future[Unit] = {

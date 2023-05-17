@@ -119,6 +119,32 @@ class PaymentApi @Inject() (
       )
     } yield customerPaymentMethod
 
+  def deletePaymentMethod(userId: UUID, paymentMethodId: String): Future[Unit] =
+    for {
+      paymentCustomer <- getPaymentCustomer(userId)
+      _ <- paymentService.removePaymentMethodFromCustomer(paymentMethodId, paymentCustomer.customerId)
+      _ <- customerRepository.deletePaymentMethodForCustomer(userId, paymentMethodId)
+      customerPaymentMethods <- customerRepository.getPaymentMethodsForCustomer(userId)
+      _ <- Future.sequence(
+        customerPaymentMethods
+          .map(pm => customerRepository.setPaymentMethodAsNonDefaultForCustomer(userId, pm.paymentMethodId))
+      )
+      _ <- {
+        if (customerPaymentMethods.nonEmpty)
+          for {
+            _ <- customerRepository.setPaymentMethodAsDefaultForCustomer(
+              userId,
+              customerPaymentMethods.head.paymentMethodId
+            )
+            _ <- paymentService.setPaymentMethodAsDefaultForSubscriptionForCustomer(
+              customerPaymentMethods.head.paymentMethodId,
+              paymentCustomer.customerId
+            )
+          } yield ()
+        else Future.unit
+      }
+    } yield ()
+
   def setPaymentMethodAsDefaultForUserSubscriptions(userId: UUID, paymentMethodId: String): Future[Unit] =
     for {
       paymentCustomer <- getPaymentCustomer(userId)

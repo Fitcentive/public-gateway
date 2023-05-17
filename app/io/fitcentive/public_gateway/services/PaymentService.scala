@@ -11,6 +11,7 @@ import scala.concurrent.Future
 trait PaymentService {
   def createCustomer(user: User): Future[Customer]
   def attachPaymentMethodToCustomer(paymentMethodId: String, customerId: String): Future[Unit]
+  def removePaymentMethodFromCustomer(paymentMethodId: String, customerId: String): Future[Unit]
   def setPaymentMethodAsDefaultForSubscriptionForCustomer(paymentMethodId: String, customerId: String): Future[Unit]
   def createSubscription(customerId: String, defaultPaymentMethodId: String): Future[Subscription]
   def cancelSubscription(subscriptionId: String): Future[Unit]
