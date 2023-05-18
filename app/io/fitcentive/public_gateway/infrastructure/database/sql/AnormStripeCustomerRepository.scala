@@ -20,6 +20,11 @@ class AnormStripeCustomerRepository @Inject() (val db: Database)(implicit val db
 
   import AnormStripeCustomerRepository._
 
+  override def getUserIdByCustomerId(customerId: String): Future[Option[PaymentCustomer]] =
+    Future {
+      getRecordOpt(SQL_GET_USER_BY_CUSTOMER_ID, "customerId" -> customerId)(customerRowParser).map(_.toDomain)
+    }
+
   override def getCustomerByUserId(userId: UUID): Future[Option[PaymentCustomer]] =
     Future {
       getRecordOpt(SQL_GET_CUSTOMER_BY_USER_ID, "userId" -> userId)(customerRowParser).map(_.toDomain)
@@ -130,6 +135,13 @@ class AnormStripeCustomerRepository @Inject() (val db: Database)(implicit val db
 }
 
 object AnormStripeCustomerRepository {
+  private val SQL_GET_USER_BY_CUSTOMER_ID: String =
+    s"""
+       |select * 
+       |from stripe_users s
+       |where s.customer_id = {customerId} ;
+       |""".stripMargin
+
   private val SQL_GET_CUSTOMER_BY_USER_ID: String =
     s"""
        |select * 

@@ -1,7 +1,6 @@
 package io.fitcentive.public_gateway.api
 
-import com.stripe.exception.StripeException
-import com.stripe.model.{StripeError, Subscription}
+import com.stripe.model.{Event, Subscription}
 import io.fitcentive.public_gateway.domain.payment.{
   CustomerPaymentMethod,
   PaymentCustomer,
@@ -17,7 +16,7 @@ import java.time.temporal.ChronoUnit
 import java.util.UUID
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.util.Try
 
 @Singleton
 class PaymentApi @Inject() (
@@ -25,9 +24,61 @@ class PaymentApi @Inject() (
   paymentService: PaymentService,
   userService: UserService,
   messageBusService: MessageBusService,
-)(implicit ec: ExecutionContext) {
+)(implicit ec: ExecutionContext)
+  extends AppLogger {
 
-  // todo - webhooks??
+  /*
+    https://stripe.com/docs/billing/subscriptions/webhooks
+    Some relevant events include:
+      customer.source.expiring
+      customer.subscription.resumed
+      customer.subscription.updated
+      customer.subscription.deleted - fired when payment fails due to retry rules configured in Stripe dashboard.
+      invoice.payment_failed
+      invoice.updated
+      payment_intent.succeeded
+      payment_intent.payment_failed
+   */
+  def handleWebHookEvent(event: Event): Future[Unit] = {
+
+    /**
+      * Deletes subscription for user and publishes event to cancel user premium
+      * Also removes all associated payment methods to user
+      */
+    def handleCustomerSubscriptionDeleted: Future[Unit] =
+      for {
+        subscription <- Future.fromTry(Try(event.getData.asInstanceOf[Subscription]))
+        paymentCustomer <-
+          customerRepository
+            .getUserIdByCustomerId(subscription.getCustomer)
+            .flatMap(_.map(Future.successful).getOrElse {
+              logError("Error processing event customer.subscription.deleted: Unable to get userId from customerId")
+              Future.failed(new Exception("Payment customer not found"))
+            })
+        _ <- customerRepository.deleteSubscriptionForUser(paymentCustomer.userId, subscription.getId)
+        paymentMethods <- customerRepository.getPaymentMethodsForCustomer(paymentCustomer.userId)
+        _ <- Future.sequence(
+          paymentMethods.map(pm => paymentService.removePaymentMethodFromCustomer(pm.paymentMethodId, pm.customerId))
+        )
+        _ <- Future.sequence(
+          paymentMethods
+            .map(pm => customerRepository.deletePaymentMethodForCustomer(paymentCustomer.userId, pm.paymentMethodId))
+        )
+        _ <- messageBusService.publishDisablePremiumForUser(paymentCustomer.userId)
+      } yield ()
+
+    // todo - complete this
+    def handleCustomerPaymentMethodExpiring: Future[Unit] = Future.unit
+
+    event.getType match {
+      case "customer.source.expiring"      => handleCustomerPaymentMethodExpiring
+      case "customer.subscription.deleted" => handleCustomerSubscriptionDeleted
+      case unexpected =>
+        logInfo(s"Stripe webhook - unrecognized event: $unexpected ")
+        Future.unit
+    }
+  }
+
   // todo - db scheduler to disable premium after 32 days unless something changes with webhooks??
   def createPremiumSubscriptionForCustomer(userId: UUID, paymentMethodId: String): Future[Subscription] =
     for {

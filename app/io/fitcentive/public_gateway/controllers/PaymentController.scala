@@ -1,21 +1,49 @@
 package io.fitcentive.public_gateway.controllers
 
+import com.stripe.net.Webhook
 import io.fitcentive.public_gateway.api.PaymentApi
 import io.fitcentive.public_gateway.infrastructure.utils.ServerErrorHandler
+import io.fitcentive.public_gateway.services.SettingsService
 import io.fitcentive.sdk.play.UserAuthAction
 import io.fitcentive.sdk.utils.PlayControllerOps
 import play.api.libs.json.Json
-import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents}
+import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents, PlayBodyParsers, RawBuffer, Request}
 
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
 
 @Singleton
-class PaymentController @Inject() (paymentApi: PaymentApi, userAuthAction: UserAuthAction, cc: ControllerComponents)(
-  implicit exec: ExecutionContext
-) extends AbstractController(cc)
+class PaymentController @Inject() (
+  paymentApi: PaymentApi,
+  userAuthAction: UserAuthAction,
+  cc: ControllerComponents,
+  settingsService: SettingsService,
+  parsers: PlayBodyParsers
+)(implicit exec: ExecutionContext)
+  extends AbstractController(cc)
   with PlayControllerOps
   with ServerErrorHandler {
+
+  def stripeWebhook: Action[RawBuffer] =
+    Action(parsers.raw).async { implicit request: Request[RawBuffer] =>
+      val bodyOp = request.body.asBytes()
+      val sigOp: Option[String] = request.headers.get("Stripe-Signature")
+      (bodyOp, sigOp) match {
+        case (Some(body), Some(signature)) =>
+          Try {
+            Webhook.constructEvent(body.utf8String, signature, settingsService.stripeConfig.webhookSecret)
+          } match {
+            case Failure(exception) => Future.successful(BadRequest(s"Invalid signature: $exception"))
+            case Success(value) =>
+              paymentApi
+                .handleWebHookEvent(value)
+                .map(_ => Ok)
+                .recover(resultErrorAsyncHandler)
+          }
+        case _ => Future.successful(BadRequest)
+      }
+    }
 
   def getPaymentMethods: Action[AnyContent] =
     userAuthAction.async { implicit userRequest =>

@@ -19,3 +19,5 @@ POST     /api/gateway/payment/method/default                        io.fitcentiv
 POST     /api/gateway/payment/subscribe                             io.fitcentive.public_gateway.controllers.PaymentController.subscribeToPremium(p_id: String)
 DELETE   /api/gateway/payment/subscribe                             io.fitcentive.public_gateway.controllers.PaymentController.cancelPremium
 GET      /api/gateway/payment/subscribe                             io.fitcentive.public_gateway.controllers.PaymentController.getPremiumSubscriptions
+
+POST     /api/gateway/stripe-webhook                                io.fitcentive.public_gateway.controllers.PaymentController.stripeWebhook

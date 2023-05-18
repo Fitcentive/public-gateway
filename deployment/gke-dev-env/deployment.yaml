@@ -100,6 +100,8 @@ spec:
               value: "prod_Nte5eUFCJAQkJv"
             - name: STRIPE_PRODUCT_PRICE_ID
               value: "price_1N7qn1EGzewRelCEYmI1iadM"
+            - name: STRIPE_WEBHOOK_SECRET
+              value: "whsec_UEXXXVBzYXr90wquBz7FKEARCHwTRImX"
             - name: DB_HOST
               value: "localhost"
             - name: DB_PORT
