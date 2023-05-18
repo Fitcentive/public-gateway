@@ -1,6 +1,6 @@
 package io.fitcentive.public_gateway.api
 
-import com.stripe.model.{Event, Subscription}
+import com.stripe.model.{Event, StripeObject, Subscription}
 import io.fitcentive.public_gateway.domain.payment.{
   CustomerPaymentMethod,
   PaymentCustomer,
@@ -47,7 +47,17 @@ class PaymentApi @Inject() (
       */
     def handleCustomerSubscriptionDeleted: Future[Unit] =
       for {
-        subscription <- Future.fromTry(Try(event.getData.asInstanceOf[Subscription]))
+        subscription <- {
+          // https://stripe.com/docs/webhooks/quickstart?lang=java
+          val dataObjectDeserializer = event.getDataObjectDeserializer
+          val stripeObject: Option[StripeObject] = {
+            if (dataObjectDeserializer.getObject.isPresent) Some(dataObjectDeserializer.getObject.get())
+            else None
+          }
+          stripeObject
+            .map(s => Future.successful(s.asInstanceOf[Subscription]))
+            .getOrElse(Future.failed(new Exception("Unable to deserialize event data object")))
+        }
         paymentCustomer <-
           customerRepository
             .getUserIdByCustomerId(subscription.getCustomer)
@@ -69,13 +79,11 @@ class PaymentApi @Inject() (
 
     // todo - complete this
     def handleCustomerPaymentMethodExpiring: Future[Unit] = Future.unit
-
+    logInfo(s"Stripe webhook - processing event: ${event.getType}")
     event.getType match {
       case "customer.source.expiring"      => handleCustomerPaymentMethodExpiring
       case "customer.subscription.deleted" => handleCustomerSubscriptionDeleted
-      case unexpected =>
-        logInfo(s"Stripe webhook - unrecognized event: $unexpected ")
-        Future.unit
+      case unexpected                      => Future.unit
     }
   }
 
