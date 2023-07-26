@@ -13,6 +13,7 @@ trait CustomerRepository {
   def getCustomerByUserId(userId: UUID): Future[Option[PaymentCustomer]]
   def getUserIdByCustomerId(customerId: String): Future[Option[PaymentCustomer]]
   def addCustomer(userId: UUID, customerId: String): Future[PaymentCustomer]
+  def deleteCustomerByUserId(userId: UUID): Future[Unit]
   def getSubscriptionsForUser(userId: UUID): Future[Seq[PaymentSubscription]]
   def createSubscriptionForUser(
     id: UUID,

@@ -16,6 +16,8 @@ import io.fitcentive.public_gateway.domain.user.User
 import io.fitcentive.public_gateway.services.{PaymentService, SettingsService}
 import play.api.libs.ws.WSClient
 
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import scala.jdk.CollectionConverters._
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -124,8 +126,15 @@ class RestStripeService @Inject() (wsClient: WSClient, settingsService: Settings
       }
   }
 
-  override def createSubscription(customerId: String, defaultPaymentMethodId: String): Future[Subscription] = {
-    val params = SubscriptionCreateParams
+  /**
+    * Note that all subscriptions are now created with a 30 day trial
+    */
+  override def createSubscription(
+    customerId: String,
+    defaultPaymentMethodId: String,
+    shouldEnableTrial: Boolean
+  ): Future[Subscription] = {
+    val paramsBuilder = SubscriptionCreateParams
       .builder()
       .addItem(
         SubscriptionCreateParams.Item
@@ -137,11 +146,15 @@ class RestStripeService @Inject() (wsClient: WSClient, settingsService: Settings
       .setCurrency("CAD")
       .setDefaultPaymentMethod(defaultPaymentMethodId)
       .setDescription(s"Fitcentive+ subscription for customerId: $customerId")
-      .build()
+
+    if (shouldEnableTrial)
+      paramsBuilder.setTrialEnd(
+        Instant.now().plus(30, ChronoUnit.DAYS).toEpochMilli / 1000
+      ) // unix timestamp is in seconds
 
     Future.fromTry {
       Try {
-        Subscription.create(params)
+        Subscription.create(paramsBuilder.build())
       }
     }
   }

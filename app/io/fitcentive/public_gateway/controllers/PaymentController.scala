@@ -4,11 +4,12 @@ import com.stripe.net.Webhook
 import io.fitcentive.public_gateway.api.PaymentApi
 import io.fitcentive.public_gateway.infrastructure.utils.ServerErrorHandler
 import io.fitcentive.public_gateway.services.SettingsService
-import io.fitcentive.sdk.play.UserAuthAction
+import io.fitcentive.sdk.play.{InternalAuthAction, UserAuthAction}
 import io.fitcentive.sdk.utils.PlayControllerOps
 import play.api.libs.json.Json
 import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents, PlayBodyParsers, RawBuffer, Request}
 
+import java.util.UUID
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
@@ -17,6 +18,7 @@ import scala.util.{Failure, Success, Try}
 class PaymentController @Inject() (
   paymentApi: PaymentApi,
   userAuthAction: UserAuthAction,
+  internalAuthAction: InternalAuthAction,
   cc: ControllerComponents,
   settingsService: SettingsService,
   parsers: PlayBodyParsers
@@ -101,4 +103,15 @@ class PaymentController @Inject() (
         .recover(resultErrorAsyncHandler)
     }
 
+  // -------------------------
+  // Internal routes
+  // -------------------------
+
+  def deleteUserData(userId: UUID): Action[AnyContent] =
+    internalAuthAction.async { implicit userRequest =>
+      paymentApi
+        .deleteUserData(userId)
+        .map(_ => NoContent)
+        .recover(resultErrorAsyncHandler)
+    }
 }

@@ -15,7 +15,11 @@ trait PaymentService {
   def setPaymentMethodAsDefaultForCustomer(paymentMethodId: String, customerId: String): Future[Unit]
   def setPaymentMethodAsDefaultForSubscription(paymentMethodId: String, subscriptionId: String): Future[Unit]
   def getPaymentMethodForSubscription(subscriptionId: String): Future[String]
-  def createSubscription(customerId: String, defaultPaymentMethodId: String): Future[Subscription]
+  def createSubscription(
+    customerId: String,
+    defaultPaymentMethodId: String,
+    shouldEnableTrial: Boolean
+  ): Future[Subscription]
   def cancelSubscription(subscriptionId: String): Future[Unit]
   def getSubscription(subscriptionId: String): Future[Subscription]
   def getProtectedCardInfo(paymentMethodId: String): Future[PaymentMethod]

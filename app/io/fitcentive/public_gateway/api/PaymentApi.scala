@@ -7,7 +7,7 @@ import io.fitcentive.public_gateway.domain.payment.{
   ProtectedCreditCard,
   StripeSubscription
 }
-import io.fitcentive.public_gateway.repositories.CustomerRepository
+import io.fitcentive.public_gateway.repositories.{CustomerRepository, UserTrialRepository}
 import io.fitcentive.public_gateway.services.{MessageBusService, PaymentService, UserService}
 import io.fitcentive.sdk.logging.AppLogger
 
@@ -21,6 +21,7 @@ import scala.util.Try
 @Singleton
 class PaymentApi @Inject() (
   customerRepository: CustomerRepository,
+  userTrialRepository: UserTrialRepository,
   paymentService: PaymentService,
   userService: UserService,
   messageBusService: MessageBusService,
@@ -78,7 +79,9 @@ class PaymentApi @Inject() (
       } yield ()
 
     // todo - complete this
-    def handleCustomerPaymentMethodExpiring: Future[Unit] = Future.unit
+    def handleCustomerPaymentMethodExpiring: Future[Unit] =
+      Future.unit
+
     logInfo(s"Stripe webhook - processing event: ${event.getType}")
     event.getType match {
       case "customer.source.expiring"      => handleCustomerPaymentMethodExpiring
@@ -92,7 +95,9 @@ class PaymentApi @Inject() (
     for {
       paymentCustomer <- getPaymentCustomer(userId)
       _ <- paymentService.attachPaymentMethodToCustomer(paymentMethodId, paymentCustomer.customerId)
-      subscription <- paymentService.createSubscription(paymentCustomer.customerId, paymentMethodId)
+      hasUserAlreadyUsedTrial <- userTrialRepository.hasUserAlreadyEnabledTrial(userId)
+      subscription <-
+        paymentService.createSubscription(paymentCustomer.customerId, paymentMethodId, !hasUserAlreadyUsedTrial)
       _ <- customerRepository.createSubscriptionForUser(
         id = UUID.randomUUID(),
         userId = userId,
@@ -101,6 +106,7 @@ class PaymentApi @Inject() (
         isActive = true,
         validUntil = Instant.now.plus(32, ChronoUnit.DAYS)
       )
+      _ <- userTrialRepository.upsertUserTrialStatus(userId, hasBeenUsed = true)
       _ <- paymentService.setPaymentMethodAsDefaultForCustomer(paymentMethodId, paymentCustomer.customerId)
       _ <- customerRepository.addPaymentMethodForCustomer(
         UUID.randomUUID(),
@@ -164,6 +170,7 @@ class PaymentApi @Inject() (
           customerId = sub.customerId,
           startedAt = Instant.ofEpochSecond(stripeSub.getCurrentPeriodStart),
           validUntil = Instant.ofEpochSecond(stripeSub.getCurrentPeriodEnd),
+          trialEnd = Try(stripeSub.getTrialEnd).map(s => Some(Instant.ofEpochSecond(s))).getOrElse(None),
           createdAt = sub.createdAt,
           updatedAt = sub.updatedAt,
         )
@@ -268,5 +275,12 @@ class PaymentApi @Inject() (
         } yield newCust
       }(Future.successful)
     } yield paymentCustomer
+
+  def deleteUserData(userId: UUID): Future[Unit] =
+    for {
+      _ <- cancelPremiumSubscriptionForCustomer(userId)
+      _ <- customerRepository.deleteCustomerByUserId(userId)
+      _ <- userTrialRepository.deleteUserTrialStatus(userId)
+    } yield ()
 
 }

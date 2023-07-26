@@ -40,6 +40,11 @@ class AnormStripeCustomerRepository @Inject() (val db: Database)(implicit val db
       }
     }
 
+  override def deleteCustomerByUserId(userId: UUID): Future[Unit] =
+    Future {
+      executeSqlWithoutReturning(SQL_DELETE_CUSTOMER_BY_USER_ID, Seq("userId" -> userId))
+    }
+
   override def getSubscriptionsForUser(userId: UUID): Future[Seq[PaymentSubscription]] =
     Future {
       getRecords(SQL_GET_SUBSCRIPTIONS_FOR_USER, "userId" -> userId)(subscriptionRowParser)
@@ -211,6 +216,12 @@ object AnormStripeCustomerRepository {
     s"""
        |select *
        |from stripe_user_subscriptions 
+       |where user_id = {userId}::uuid ;
+       |""".stripMargin
+
+  private val SQL_DELETE_CUSTOMER_BY_USER_ID: String =
+    s"""
+       |delete from stripe_users
        |where user_id = {userId}::uuid ;
        |""".stripMargin
 

@@ -21,3 +21,7 @@ DELETE   /api/gateway/payment/subscribe                             io.fitcentiv
 GET      /api/gateway/payment/subscribe                             io.fitcentive.public_gateway.controllers.PaymentController.getPremiumSubscriptions
 
 POST     /api/gateway/stripe-webhook                                io.fitcentive.public_gateway.controllers.PaymentController.stripeWebhook
+
+
+# Internal endpoints
+DELETE  /api/internal/gateway/user/:userId                          io.fitcentive.public_gateway.controllers.PaymentController.deleteUserData(userId: java.util.UUID)

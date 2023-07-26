@@ -13,6 +13,7 @@ case class StripeSubscription(
   customerId: String,
   startedAt: Instant,
   validUntil: Instant,
+  trialEnd: Option[Instant],
   createdAt: Instant,
   updatedAt: Instant
 )

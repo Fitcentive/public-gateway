@@ -26,3 +26,11 @@ spec:
                 name: public-gateway-service
                 port:
                   number: 9000
+          - path: /api/internal/gateway
+            pathType: Prefix
+            backend:
+              service:
+                name: public-gateway-service
+                port:
+                  number: 9000
+
